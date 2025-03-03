@@ -41,28 +41,52 @@ print(f"Alle {num_lcs} Lightcurves wurden gespeichert und geplottet.") """
 
 
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 # Pfad zur TFRecord-Datei
-tfrecord_file = '/kepler/test-00000-of-00001'
+tfrecord_file = "kepler/test-00000-of-00001"
 
 # Funktion zum Parsen der TFRecord-Datei
 def _parse_function(proto):
-    # Definiere die Features, die gelesen werden sollen
+    # Definiere die Features basierend auf der erkannten Struktur
     keys_to_features = {
         'global_view': tf.io.FixedLenFeature([2001], tf.float32),
         'local_view': tf.io.FixedLenFeature([201], tf.float32),
-        'label': tf.io.FixedLenFeature([], tf.int64)
+        'av_training_set': tf.io.FixedLenFeature([], tf.string),  # Label als String
+        'tce_period': tf.io.FixedLenFeature([], tf.float32),
+        'tce_duration': tf.io.FixedLenFeature([], tf.float32),
+        'tce_depth': tf.io.FixedLenFeature([], tf.float32),
+        'tce_model_snr': tf.io.FixedLenFeature([], tf.float32),
+        'kepid': tf.io.FixedLenFeature([], tf.int64),
     }
-    # Parse die Eingabe tf.Example proto mit den definierten Features
+    # Parse das tf.Example-Proto
     parsed_features = tf.io.parse_single_example(proto, keys_to_features)
-    return parsed_features['global_view'], parsed_features['local_view'], parsed_features['label']
 
-# Erstelle einen Dataset-Objekt
+    return (parsed_features['global_view'], parsed_features['local_view'], 
+            parsed_features['av_training_set'], parsed_features['tce_period'],
+            parsed_features['tce_duration'], parsed_features['tce_depth'], 
+            parsed_features['tce_model_snr'], parsed_features['kepid'])
+
+# Lade das TFRecordDataset
 dataset = tf.data.TFRecordDataset(tfrecord_file)
 dataset = dataset.map(_parse_function)
 
-# Iteriere über das Dataset
-for global_view, local_view, label in dataset:
-    print(f'Label: {label.numpy()}')
-    # Hier kannst du weitere Verarbeitungsschritte hinzufügen
-
+# Zeige die ersten 5 Lightcurves als Plots
+for global_view, local_view, label, period, duration, depth, snr, kepid in dataset.take(5):
+    label = label.numpy().decode("utf-8")
+    
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    
+    # Global View plotten
+    axes[0].plot(global_view.numpy(), color="blue")
+    axes[0].set_title(f"Global View - Kepler ID: {kepid.numpy()} ({label})")
+    axes[0].set_xlabel("Zeitpunkte")
+    axes[0].set_ylabel("Helligkeit")
+    
+    # Local View plotten
+    axes[1].plot(local_view.numpy(), color="red")
+    axes[1].set_title(f"Local View - Kepler ID: {kepid.numpy()} ({label})")
+    axes[1].set_xlabel("Zeitpunkte (lokal)")
+    
+    plt.tight_layout()
+    plt.show()
