@@ -5,6 +5,8 @@ from tensorflow.keras import layers
 import matplotlib.pyplot as plt
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import roc_curve, roc_auc_score
+
 
 # Lade die Trainings- und Testdaten
 X_train = np.load("X_train_kepler.npy")
@@ -75,31 +77,44 @@ def plot_training_history(history):
 
 plot_training_history(history)
 
-# Teste verschiedene Schwellenwerte für die Vorhersagen
-thresholds = [0.53]
-for threshold in thresholds:
-    y_pred = (model.predict(X_test) > threshold).astype("int32")
+# Vorhersagewahrscheinlichkeiten holen
+y_pred_proba = model.predict(X_test).ravel()
 
-    print(f"\n🔹 **Classification Report (Threshold = {threshold})**")
-    print(classification_report(y_test, y_pred))
+# Berechne ROC-Kurve und optimalen Threshold
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
+optimal_idx = np.argmax(tpr - fpr)
+optimal_threshold = thresholds[optimal_idx]
 
-    cm = confusion_matrix(y_test, y_pred)
-    print("\n🔹 **Confusion Matrix:**")
-    print(cm)
+print(f"🔹 Optimaler Threshold aus ROC-Kurve: {optimal_threshold:.4f}")
 
-    # Confusion Matrix visualisieren
-    plt.figure(figsize=(6, 5))
-    plt.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
-    plt.title(f"Confusion Matrix (Threshold = {threshold})")
-    plt.colorbar()
-    plt.xticks([0, 1], ["NPC (0)", "PC (1)"])
-    plt.yticks([0, 1], ["NPC (0)", "PC (1)"])
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
+# Finale Vorhersagen basierend auf optimalem Threshold
+y_pred_optimal = (y_pred_proba >= optimal_threshold).astype(int)
 
-    # Werte in die Matrix schreiben
-    for i in range(cm.shape[0]):
-        for j in range(cm.shape[1]):
-            plt.text(j, i, str(cm[i, j]), ha="center", va="center", color="black")
+# Classification Report
+print(f"\n🔹 Classification Report (Optimal Threshold = {optimal_threshold:.4f})")
+print(classification_report(y_test, y_pred_optimal))
 
-    plt.show()
+# Confusion Matrix
+cm = confusion_matrix(y_test, y_pred_optimal)
+print("\n🔹 Confusion Matrix:")
+print(cm)
+
+# Confusion Matrix visualisieren
+plt.figure(figsize=(6, 5))
+plt.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
+plt.title(f"Confusion Matrix (Optimal Threshold = {optimal_threshold:.4f})")
+plt.colorbar()
+plt.xticks([0, 1], ["NPC (0)", "PC (1)"])
+plt.yticks([0, 1], ["NPC (0)", "PC (1)"])
+plt.xlabel("Predicted")
+plt.ylabel("True")
+
+for i in range(cm.shape[0]):
+    for j in range(cm.shape[1]):
+        plt.text(j, i, str(cm[i, j]), ha="center", va="center", color="black")
+
+plt.show()
+
+# AUC ausgeben
+auc_score = roc_auc_score(y_test, y_pred_proba)
+print(f"✅ Genauer AUC-Score: {auc_score:.4f}")
