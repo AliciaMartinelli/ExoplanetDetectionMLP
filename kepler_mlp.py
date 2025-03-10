@@ -1,42 +1,37 @@
-
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
+from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import classification_report, confusion_matrix
-from imblearn.over_sampling import SMOTE
 
-X_train = np.load("X_train_features.npy")
-X_test = np.load("X_test_features.npy")
-y_train = np.load("y_train.npy")
-y_test = np.load("y_test.npy")
+# Lade die Trainings- und Testdaten
+X_train = np.load("X_train_kepler.npy")
+X_test = np.load("X_test_kepler.npy")
+y_train = np.load("y_train_kepler.npy")
+y_test = np.load("y_test_kepler.npy")
 
-smote = SMOTE(sampling_strategy='auto', k_neighbors=1, random_state=42)
-X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+# Berechne Klassen-Gewichte (weil Exoplaneten seltener sind)
+class_weights = compute_class_weight(class_weight="balanced", classes=np.unique(y_train), y=y_train)
+class_weight_dict = {0: class_weights[0], 1: class_weights[1]}
+print(f"🔹 Klassen-Gewichte: {class_weight_dict}")
 
-unique, counts = np.unique(y_train_resampled, return_counts=True)
-print("📊 Neue Verteilung nach SMOTE:", dict(zip(unique, counts)))
-
+# Definiere das MLP-Modell
 input_dim = X_train.shape[1]
 
 model = keras.Sequential([
-    layers.Dense(512, activation="relu", input_shape=(input_dim,)),
-    layers.BatchNormalization(),
-    layers.Dropout(0.5),
-
-    layers.Dense(256, activation="relu"),
-    layers.BatchNormalization(),
-    layers.Dropout(0.5),
-
-    layers.Dense(128, activation="relu"),
-    layers.BatchNormalization(),
-    layers.Dropout(0.5),
-
+    layers.Dense(128, activation="relu", input_shape=(input_dim,)),
+    layers.Dropout(0.25),
+    
     layers.Dense(64, activation="relu"),
+    layers.Dropout(0.25),
+
+    layers.Dense(32, activation="relu"),
 
     layers.Dense(1, activation="sigmoid")
 ])
+
 
 model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
               loss="binary_crossentropy",
@@ -44,28 +39,33 @@ model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
 
 model.summary()
 
-early_stopping = keras.callbacks.EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
+# Early Stopping für stabileres Training
+early_stopping = keras.callbacks.EarlyStopping(monitor="val_loss", patience=15, restore_best_weights=True)
 
-history = model.fit(X_train_resampled, y_train_resampled, epochs=50, batch_size=32,
-                    validation_data=(X_test, y_test), callbacks=[early_stopping])
+# Trainiere das Modell
+history = model.fit(X_train, y_train, epochs=50, batch_size=32,
+                    validation_data=(X_test, y_test),
+                    class_weight=class_weight_dict,  # Wichte Exoplaneten höher
+                    callbacks=[early_stopping])
 
-model.save("exoplanet_classifier.keras")
+# Speichere das trainierte Modell
 model.save("exoplanet_classifier.h5")
 
+# Trainingsverlauf visualisieren
 def plot_training_history(history):
     plt.figure(figsize=(12, 5))
 
     plt.subplot(1, 2, 1)
-    plt.plot(history.history["loss"], label="Train Loss")
-    plt.plot(history.history["val_loss"], label="Validation Loss")
+    plt.plot(history.history["loss"], label="Train Loss", color="blue")
+    plt.plot(history.history["val_loss"], label="Validation Loss", color="red")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.legend()
     plt.title("Loss-Verlauf")
 
     plt.subplot(1, 2, 2)
-    plt.plot(history.history["accuracy"], label="Train Accuracy")
-    plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
+    plt.plot(history.history["accuracy"], label="Train Accuracy", color="blue")
+    plt.plot(history.history["val_accuracy"], label="Validation Accuracy", color="red")
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
     plt.legend()
@@ -75,10 +75,31 @@ def plot_training_history(history):
 
 plot_training_history(history)
 
-y_pred = (model.predict(X_test) > 0.55).astype("int32")
+# Teste verschiedene Schwellenwerte für die Vorhersagen
+thresholds = [0.53]
+for threshold in thresholds:
+    y_pred = (model.predict(X_test) > threshold).astype("int32")
 
-print("\n🔹 **Classification Report:**")
-print(classification_report(y_test, y_pred))
+    print(f"\n🔹 **Classification Report (Threshold = {threshold})**")
+    print(classification_report(y_test, y_pred))
 
-print("\n🔹 **Confusion Matrix:**")
-print(confusion_matrix(y_test, y_pred))
+    cm = confusion_matrix(y_test, y_pred)
+    print("\n🔹 **Confusion Matrix:**")
+    print(cm)
+
+    # Confusion Matrix visualisieren
+    plt.figure(figsize=(6, 5))
+    plt.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
+    plt.title(f"Confusion Matrix (Threshold = {threshold})")
+    plt.colorbar()
+    plt.xticks([0, 1], ["NPC (0)", "PC (1)"])
+    plt.yticks([0, 1], ["NPC (0)", "PC (1)"])
+    plt.xlabel("Predicted")
+    plt.ylabel("True")
+
+    # Werte in die Matrix schreiben
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            plt.text(j, i, str(cm[i, j]), ha="center", va="center", color="black")
+
+    plt.show()

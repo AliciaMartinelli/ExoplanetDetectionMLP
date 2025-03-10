@@ -29,7 +29,7 @@ def _parse_function(proto):
         'kepid': tf.io.FixedLenFeature([], tf.int64),
     }
     parsed_features = tf.io.parse_single_example(proto, keys_to_features)
-    return parsed_features['kepid'], parsed_features['global_view'], parsed_features['av_training_set']
+    return parsed_features['kepid'], parsed_features['global_view'], parsed_features['local_view'], parsed_features['av_training_set']
 
 # Verarbeitung der TFRecord-Dateien
 tfrecord_files = [os.path.join(RAW_DIR, f) for f in os.listdir(RAW_DIR) if not f.startswith(".")]
@@ -41,12 +41,16 @@ for file in tfrecord_files:
     print(f"📂 Verarbeite Datei: {file}")
     dataset = tf.data.TFRecordDataset(file).map(_parse_function)
 
-    for kepid, global_view, label in dataset:
+    for kepid, global_view, local_view, label in dataset:
         kepid = int(kepid.numpy())
         label = label.numpy().decode("utf-8")
         global_view = global_view.numpy()
+        local_view = local_view.numpy()
 
         y_label = 1 if label == "PC" else 0
+
+        # Global + Local View zusammenfügen
+        combined_lightcurve = np.concatenate((global_view, local_view))  # 2001 + 201 = 2202
 
         # Eindeutiger Dateiname (falls Kepler-ID mehrfach vorkommt)
         if kepid in kepler_id_counts:
@@ -67,7 +71,7 @@ for file in tfrecord_files:
             continue  # Sollte nie passieren
         
         final_save_path = os.path.join(target_dir, unique_filename)
-        np.save(final_save_path, {"lightcurve": global_view, "label": y_label, "kepler_id": kepid})
+        np.save(final_save_path, {"lightcurve": combined_lightcurve, "label": y_label, "kepler_id": kepid})
         
         print(f"💾 Gespeichert: {final_save_path}")
 
