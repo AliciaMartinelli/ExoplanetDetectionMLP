@@ -1,40 +1,26 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-# Datei laden
-file_path = "kepler_data/test/1429589_1.npy"  # Falls die Datei woanders liegt, den Pfad anpassen
-data = np.load(file_path, allow_pickle=True).item()
+# Lade die Datensätze
+X_train = np.load("X_train_kepler.npy")
+X_test = np.load("X_test_kepler.npy")
+y_train = np.load("y_train_kepler.npy")
+y_test = np.load("y_test_kepler.npy")
 
-# Prüfen, ob die Keys existieren
-if "lightcurve" in data:
-    lightcurve = data["lightcurve"]
+# Finde Spalten in X_train, die nur Nullwerte enthalten
+zero_columns = np.all(X_train == 0, axis=0)
 
-    # Global View und Local View aufteilen
-    global_view = lightcurve[:2001]
-    local_view = lightcurve[2001:]
+# Entferne diese Spalten aus X_train und X_test
+X_train_cleaned = X_train[:, ~zero_columns]
+X_test_cleaned = X_test[:, ~zero_columns]
 
-    # Plot erstellen
-    plt.figure(figsize=(12, 5))
+# Speichere die bereinigten Daten als neue Dateien
+np.save("X_train_kepler.npy", X_train_cleaned)
+np.save("X_test_kepler.npy", X_test_cleaned)
+np.save("y_train_kepler", y_train)  # y hat keine Spalten, bleibt gleich
+np.save("y_test_kepler.npy", y_test)    # y hat keine Spalten, bleibt gleich
 
-    # Global View plotten
-    plt.subplot(1, 2, 1)
-    plt.plot(global_view, label="Global View", color="blue")
-    plt.xlabel("Zeitpunkte")
-    plt.ylabel("Flux")
-    plt.title("Global View")
-    plt.legend()
-
-    # Local View plotten
-    plt.subplot(1, 2, 2)
-    plt.plot(local_view, label="Local View", color="red")
-    plt.xlabel("Zeitpunkte")
-    plt.ylabel("Flux")
-    plt.title("Local View")
-    plt.legend()
-
-    # Anzeigen
-    plt.tight_layout()
-    plt.show()
-
-else:
-    print("❌ Fehler: Key 'lightcurve' nicht in der Datei gefunden.")
+print(f"✅ Bereinigung abgeschlossen!")
+print(f"🔹 Ursprüngliche X_train-Form: {X_train.shape}")
+print(f"🔹 Bereinigte X_train-Form: {X_train_cleaned.shape}")
+print(f"🔹 Ursprüngliche X_test-Form: {X_test.shape}")
+print(f"🔹 Bereinigte X_test-Form: {X_test_cleaned.shape}")
