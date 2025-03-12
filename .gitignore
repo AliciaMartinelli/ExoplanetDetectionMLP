@@ -4,3 +4,5 @@ X_test_kepler.npy
 X_train_kepler.npy
 y_test_kepler.npy
 y_train_kepler.npy
+X_test_kepler_cleaned.npy
+X_train_kepler_cleaned.npy
