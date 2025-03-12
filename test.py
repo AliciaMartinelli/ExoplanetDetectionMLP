@@ -1,26 +1,25 @@
 import numpy as np
 
-# Lade die Datensätze
+# Lade die ursprünglichen Datensätze
 X_train = np.load("X_train_kepler.npy")
 X_test = np.load("X_test_kepler.npy")
-y_train = np.load("y_train_kepler.npy")
-y_test = np.load("y_test_kepler.npy")
 
-# Finde Spalten in X_train, die nur Nullwerte enthalten
-zero_columns = np.all(X_train == 0, axis=0)
+# Finde Spalten, die in beiden Sets nur Nullwerte enthalten
+null_spalten_train = np.all(X_train == 0, axis=0)
+null_spalten_test = np.all(X_test == 0, axis=0)
 
-# Entferne diese Spalten aus X_train und X_test
-X_train_cleaned = X_train[:, ~zero_columns]
-X_test_cleaned = X_test[:, ~zero_columns]
+# Bestimme die gemeinsamen Null-Spalten in beiden Sets
+gemeinsame_null_spalten = np.logical_and(null_spalten_train, null_spalten_test)
 
-# Speichere die bereinigten Daten als neue Dateien
-np.save("X_train_kepler.npy", X_train_cleaned)
-np.save("X_test_kepler.npy", X_test_cleaned)
-np.save("y_train_kepler", y_train)  # y hat keine Spalten, bleibt gleich
-np.save("y_test_kepler.npy", y_test)    # y hat keine Spalten, bleibt gleich
+# Entferne diese Spalten aus den Datensätzen
+X_train_cleaned = X_train[:, ~gemeinsame_null_spalten]
+X_test_cleaned = X_test[:, ~gemeinsame_null_spalten]
+
+# Speichere die bereinigten Datensätze als neue Dateien
+np.save("X_train_cleaned.npy", X_train_cleaned)
+np.save("X_test_cleaned.npy", X_test_cleaned)
 
 print(f"✅ Bereinigung abgeschlossen!")
-print(f"🔹 Ursprüngliche X_train-Form: {X_train.shape}")
-print(f"🔹 Bereinigte X_train-Form: {X_train_cleaned.shape}")
-print(f"🔹 Ursprüngliche X_test-Form: {X_test.shape}")
-print(f"🔹 Bereinigte X_test-Form: {X_test_cleaned.shape}")
+print(f"🔹 Ursprüngliche Anzahl der Features: {X_train.shape[1]}")
+print(f"🔹 Anzahl der entfernten Null-Spalten: {np.sum(gemeinsame_null_spalten)}")
+print(f"🔹 Neue Anzahl der Features: {X_train_cleaned.shape[1]}")
