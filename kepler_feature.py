@@ -39,16 +39,6 @@ def extract_tsfresh_features(directory):
         global_view_resampled = resample_lightcurve(global_view)
         local_view_resampled = resample_lightcurve(local_view)
 
-        # Quality Checks
-        if np.isnan(global_view_resampled).any() or np.isnan(local_view_resampled).any():
-            print(f"⚠️ NaN-Werte in {file}, werden entfernt!")
-            global_view_resampled = np.nan_to_num(global_view_resampled)
-            local_view_resampled = np.nan_to_num(local_view_resampled)
-
-        if len(global_view_resampled) < 10 or len(local_view_resampled) < 10:
-            print(f"❌ Fehler: Lichtkurve {file} hat zu wenige Punkte! Überspringe...")
-            continue
-
         df_global = pd.DataFrame({"id": [file] * len(global_view_resampled), "time": range(len(global_view_resampled)), "flux": global_view_resampled})
         df_local = pd.DataFrame({"id": [file] * len(local_view_resampled), "time": range(len(local_view_resampled)), "flux": local_view_resampled})
 

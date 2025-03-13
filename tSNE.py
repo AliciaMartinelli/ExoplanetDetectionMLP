@@ -3,19 +3,15 @@ import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler
 
-# Lade die Kepler-Daten
-X_train = np.load("X_train_kepler.npy")
-y_train = np.load("y_train_kepler.npy")
+X_train = np.load("X_train_kepler_feat.npy")
+y_train = np.load("y_train_kepler_feat.npy")
 
-# Normiere die Features für eine bessere t-SNE-Darstellung
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X_train)
 
-# Reduziere die Dimension auf 2 mit t-SNE
 tsne = TSNE(n_components=2, perplexity=30, random_state=42)
 X_tsne = tsne.fit_transform(X_scaled)
 
-# Visualisiere die t-SNE-Reduktion
 plt.figure(figsize=(8, 6))
 plt.scatter(X_tsne[y_train == 0, 0], X_tsne[y_train == 0, 1], label="Nicht-Exoplaneten", alpha=0.5, color="blue")
 plt.scatter(X_tsne[y_train == 1, 0], X_tsne[y_train == 1, 1], label="Exoplaneten", alpha=0.5, color="red")
@@ -25,13 +21,11 @@ plt.ylabel("t-SNE Dimension 2")
 plt.title("t-SNE Visualisierung der Kepler-Daten")
 plt.show()
 
+num_global_features = 6  # Anzahl der globalen Features
+num_local_features = 5   # Anzahl der lokalen Features
 
-# Falls die Features eine klare Trennung haben (erste Hälfte = Global View, zweite Hälfte = Local View)
-num_features = X_train.shape[1]
-split_index = num_features // 2  # Hälfte als Global View, Hälfte als Local View
-
-global_view = X_train[:, :split_index]
-local_view = X_train[:, split_index:]
+global_view = X_train[:, :num_global_features]
+local_view = X_train[:, num_global_features:num_global_features + num_local_features]
 
 def plot_tsne(X, y, title):
     if X.shape[1] == 0:
